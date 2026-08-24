@@ -1,0 +1,837 @@
+```html
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PortfólioPulse - Financial Analytics Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        pulse: {
+                            bg: '#070a12',
+                            card: '#0f172a',
+                            border: '#1e293b',
+                            accent: '#10b981',
+                            cyan: '#06b6d4',
+                            rose: '#f43f5e',
+                            amber: '#f59e0b',
+                            purple: '#8b5cf6',
+                            blue: '#3b82f6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #070a12;
+            color: #f3f4f6;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism & Custom Glows */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .glow-accent {
+            box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.3);
+        }
+
+        .glow-cyan {
+            box-shadow: 0 0 20px -5px rgba(6, 182, 212, 0.3);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #070a12;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* Live Indicator Pulse */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-dot {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+
+        /* Dynamic Flash Effect for Live Updates */
+        .flash-green {
+            animation: flashGreen 0.8s ease-out;
+        }
+        .flash-red {
+            animation: flashRed 0.8s ease-out;
+        }
+        @keyframes flashGreen {
+            0% { background-color: rgba(16, 185, 129, 0.3); }
+            100% { background-color: transparent; }
+        }
+        @keyframes flashRed {
+            0% { background-color: rgba(244, 63, 94, 0.3); }
+            100% { background-color: transparent; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-emerald-500 selection:text-white">
+
+    <!-- TOP NAV BAR -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3.5">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 text-slate-950 font-black shadow-lg shadow-emerald-500/20">
+                    <i data-lucide="activity" class="w-6 h-6 stroke-[2.5]"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                            Portfólio<span class="text-emerald-400">Pulse</span>
+                        </span>
+                        <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">Pro</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium">Real-Time Intelligence & Analytics</p>
+                </div>
+            </div>
+
+            <!-- Global Search & Actions -->
+            <div class="flex items-center gap-3">
+                <!-- Live Pulse Toggle -->
+                <button id="liveToggleBtn" onclick="toggleLiveFeed()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span id="livePing" class="pulse-dot absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <span id="liveStatusText">Live Pulse ON</span>
+                </button>
+
+                <!-- Currency Selector -->
+                <div class="relative">
+                    <select id="currencySelect" onchange="changeCurrency(this.value)" class="bg-slate-900/90 text-slate-300 text-xs font-semibold border border-slate-700/80 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer">
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="BRL">BRL (R$)</option>
+                    </select>
+                </div>
+
+                <!-- User Profile -->
+                <div class="hidden sm:flex items-center gap-3 pl-2 border-l border-slate-800">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Avatar" class="w-8 h-8 rounded-full border border-emerald-500/40 object-cover">
+                    <div class="text-xs">
+                        <div class="font-bold text-slate-200">Alex Morgan</div>
+                        <div class="text-[10px] text-slate-400">Private Wealth</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-6 flex-grow">
+
+        <!-- METRIC CARDS OVERVIEW -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Card 1: Total Portfolio Value -->
+            <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+                <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl group-hover:bg-emerald-500/10 transition-all"></div>
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Portfolio</span>
+                    <span class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                        <i data-lucide="wallet" class="w-4 h-4"></i>
+                    </span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span id="totalValueText" class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">$1,248,650</span>
+                </div>
+                <div class="mt-3 flex items-center gap-2 text-xs">
+                    <span id="totalReturnBadge" class="flex items-center gap-0.5 text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded">
+                        <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> +14.2%
+                    </span>
+                    <span class="text-slate-400">vs. last month</span>
+                </div>
+            </div>
+
+            <!-- Card 2: 24h Pulse Delta -->
+            <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group hover:border-cyan-500/40 transition-all">
+                <div class="absolute -right-4 -top-4 w-24 h-24 bg-cyan-500/5 rounded-full blur-xl group-hover:bg-cyan-500/10 transition-all"></div>
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">24h Gain / Loss</span>
+                    <span class="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                    </span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span id="dailyChangeValue" class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">+$18,420</span>
+                </div>
+                <div class="mt-3 flex items-center gap-2 text-xs">
+                    <span id="dailyChangeBadge" class="flex items-center gap-0.5 text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded">
+                        <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i> +1.50%
+                    </span>
+                    <span class="text-slate-400">Real-time dynamic</span>
+                </div>
+            </div>
+
+            <!-- Card 3: Portfolio Health Index -->
+            <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group hover:border-purple-500/40 transition-all">
+                <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/5 rounded-full blur-xl group-hover:bg-purple-500/10 transition-all"></div>
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pulse Health Score</span>
+                    <span class="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+                        <i data-lucide="heart-pulse" class="w-4 h-4"></i>
+                    </span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">92<span class="text-lg text-slate-400 font-normal">/100</span></span>
+                </div>
+                <div class="mt-3 flex items-center gap-2 text-xs">
+                    <span class="text-purple-400 font-bold bg-purple-500/10 px-2 py-0.5 rounded">Optimal</span>
+                    <span class="text-slate-400">Low drawdown risk</span>
+                </div>
+            </div>
+
+            <!-- Card 4: Sharpe Ratio / Volatility -->
+            <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group hover:border-amber-500/40 transition-all">
+                <div class="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/5 rounded-full blur-xl group-hover:bg-amber-500/10 transition-all"></div>
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sharpe Ratio</span>
+                    <span class="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    </span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">2.48</span>
+                </div>
+                <div class="mt-3 flex items-center gap-2 text-xs">
+                    <span class="text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded">Top 5%</span>
+                    <span class="text-slate-400">Risk-adjusted return</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: MAIN CHART & ASSET BREAKDOWN -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Main Performance Chart (2 cols wide) -->
+            <div class="lg:col-span-2 glass-panel p-6 rounded-2xl flex flex-col justify-between">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            Portfolio Performance Trajectory
+                        </h2>
+                        <p class="text-xs text-slate-400">Comparing total returns against S&P 500 benchmark</p>
+                    </div>
+
+                    <!-- Timeframe Controls -->
+                    <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+                        <button onclick="setTimeframe('1D')" class="tf-btn px-3 py-1 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition-all">1D</button>
+                        <button onclick="setTimeframe('1W')" class="tf-btn px-3 py-1 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition-all">1W</button>
+                        <button onclick="setTimeframe('1M')" class="tf-btn px-3 py-1 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition-all">1M</button>
+                        <button onclick="setTimeframe('1Y')" class="tf-btn px-3 py-1 text-xs font-medium rounded-lg text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 font-bold transition-all">1Y</button>
+                        <button onclick="setTimeframe('ALL')" class="tf-btn px-3 py-1 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition-all">ALL</button>
+                    </div>
+                </div>
+
+                <!-- Main Chart Wrapper with aspect ratio control -->
+                <div class="relative w-full flex-grow flex items-center justify-center min-h-[280px]">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap justify-between items-center text-xs text-slate-400 gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                            <span>PortfólioPulse Index</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-slate-500 inline-block"></span>
+                            <span>S&P 500 Benchmark</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 text-slate-400">
+                        <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                        <span>Updated live via web sockets</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Asset Allocation (1 col wide) -->
+            <div class="glass-panel p-6 rounded-2xl flex flex-col justify-between">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Asset Allocation</h2>
+                        <p class="text-xs text-slate-400">Distribution across asset classes</p>
+                    </div>
+                    <button class="text-slate-400 hover:text-white transition-colors">
+                        <i data-lucide="more-horizontal" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Allocation Doughnut Wrapper -->
+                <div class="relative w-full my-auto flex items-center justify-center p-2">
+                    <canvas id="allocationChart" class="max-h-[240px]"></canvas>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span class="text-xs text-slate-400 uppercase tracking-widest font-semibold">Equities</span>
+                        <span class="text-2xl font-black text-white">42.5%</span>
+                    </div>
+                </div>
+
+                <!-- Asset Legend List -->
+                <div class="mt-4 space-y-2.5 text-xs">
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                            <span class="text-slate-200 font-medium">US Tech Stocks</span>
+                        </div>
+                        <span class="font-bold text-slate-200">$530,676 (42.5%)</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                            <span class="text-slate-200 font-medium">Crypto Assets</span>
+                        </div>
+                        <span class="font-bold text-slate-200">$274,703 (22.0%)</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
+                            <span class="text-slate-200 font-medium">Global Real Estate</span>
+                        </div>
+                        <span class="font-bold text-slate-200">$212,270 (17.0%)</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                            <span class="text-slate-200 font-medium">Green Energy & Cash</span>
+                        </div>
+                        <span class="font-bold text-slate-200">$231,001 (18.5%)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: RISK RADAR DIAGNOSTICS & HOLDINGS TABLE -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Risk & Health Diagnostics (1 col) -->
+            <div class="glass-panel p-6 rounded-2xl flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-lg font-bold text-white">Risk Diagnostics</h2>
+                        <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">Balanced</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-4">Multi-factor portfolio resilience vector</p>
+                </div>
+
+                <div class="relative w-full flex items-center justify-center min-h-[220px]">
+                    <canvas id="riskRadarChart"></canvas>
+                </div>
+
+                <div class="mt-4 grid grid-cols-2 gap-2 text-center text-xs">
+                    <div class="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <div class="text-slate-400 text-[10px]">Max Drawdown</div>
+                        <div class="font-bold text-emerald-400 text-sm mt-0.5">-8.4%</div>
+                    </div>
+                    <div class="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <div class="text-slate-400 text-[10px]">Beta Index</div>
+                        <div class="font-bold text-cyan-400 text-sm mt-0.5">0.89</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Assets & Holdings Table (2 cols) -->
+            <div class="lg:col-span-2 glass-panel p-6 rounded-2xl flex flex-col justify-between">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Top Portfolio Holdings</h2>
+                        <p class="text-xs text-slate-400">Live positions dynamic performance tracking</p>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <!-- Search Box -->
+                        <div class="relative flex-grow sm:flex-grow-0">
+                            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="searchInput" onkeyup="filterHoldings()" placeholder="Filter holdings..." class="w-full sm:w-48 bg-slate-900/80 text-xs text-slate-200 pl-8 pr-3 py-1.5 rounded-lg border border-slate-800 focus:outline-none focus:border-emerald-500 transition-colors">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-900/80 uppercase text-[10px] tracking-wider text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Asset</th>
+                                <th class="p-3">Allocation</th>
+                                <th class="p-3">Price</th>
+                                <th class="p-3">24h Change</th>
+                                <th class="p-3">Value</th>
+                                <th class="p-3 text-right">Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody id="holdingsTableBody" class="divide-y divide-slate-800/60">
+                            <!-- JS dynamic insertion -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800/80 flex justify-between items-center text-xs text-slate-400">
+                    <span>Showing <strong class="text-slate-200" id="showingCount">5</strong> top positions</span>
+                    <button class="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1">
+                        View All Assets <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="glass-panel border-t border-slate-800/80 py-4 px-4 lg:px-8 mt-6">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-400">
+            <div class="flex items-center gap-2">
+                <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i>
+                <span class="font-semibold text-slate-300">PortfólioPulse Analytics Engine</span>
+                <span>&copy; 2025</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="#" class="hover:text-slate-200 transition-colors">System Health: 100%</a>
+                <span>•</span>
+                <a href="#" class="hover:text-slate-200 transition-colors">API Status</a>
+                <span>•</span>
+                <a href="#" class="hover:text-slate-200 transition-colors">Privacy & Terms</a>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- JAVASCRIPT & CHART LOGIC -->
+    <script>
+        // Global State & Data
+        let currentCurrency = 'USD';
+        let currencySymbol = '$';
+        let currencyRate = 1;
+        let isLive = true;
+        let liveInterval = null;
+
+        // Chart instances
+        let performanceChart, allocationChart, riskRadarChart;
+
+        // Base Data Definitions
+        const timeframes = {
+            '1D': {
+                labels: ['09:30', '10:30', '11:30', '12:30', '13:30', '14:30', '15:30', '16:00'],
+                portfolio: [1230000, 1234000, 1228000, 1241000, 1239000, 1245000, 1242000, 1248650],
+                benchmark: [1230000, 1231000, 1229000, 1233000, 1234000, 1236000, 1235000, 1238000]
+            },
+            '1W': {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                portfolio: [1210000, 1222000, 1218000, 1235000, 1240000, 1244000, 1248650],
+                benchmark: [1210000, 1215000, 1214000, 1220000, 1225000, 1228000, 1230000]
+            },
+            '1M': {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                portfolio: [1180000, 1205000, 1195000, 1248650],
+                benchmark: [1180000, 1190000, 1188000, 1210000]
+            },
+            '1Y': {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                portfolio: [1050000, 1080000, 1065000, 1110000, 1140000, 1125000, 1170000, 1190000, 1210000, 1200000, 1230000, 1248650],
+                benchmark: [1050000, 1060000, 1055000, 1080000, 1095000, 1090000, 1110000, 1130000, 1140000, 1150000, 1170000, 1185000]
+            },
+            'ALL': {
+                labels: ['2021', '2022', '2023', '2024', '2025'],
+                portfolio: [650000, 780000, 920000, 1100000, 1248650],
+                benchmark: [650000, 710000, 790000, 950000, 1080000]
+            }
+        };
+
+        let holdings = [
+            { id: 1, name: 'NVIDIA Corp', ticker: 'NVDA', category: 'Tech', price: 138.25, change: 3.85, value: 312000, share: 25.0 },
+            { id: 2, name: 'Bitcoin', ticker: 'BTC', category: 'Crypto', price: 91450.00, change: 2.15, value: 224000, share: 17.9 },
+            { id: 3, name: 'Apple Inc', ticker: 'AAPL', category: 'Tech', price: 232.10, change: -0.45, value: 218676, share: 17.5 },
+            { id: 4, name: 'Ethereum', ticker: 'ETH', category: 'Crypto', price: 3420.50, change: 4.12, value: 180703, share: 14.5 },
+            { id: 5, name: 'Vanguard RE REIT', ticker: 'VNQ', category: 'Real Estate', price: 88.40, change: 0.82, value: 162270, share: 13.0 }
+        ];
+
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initPerformanceChart();
+            initAllocationChart();
+            initRiskRadarChart();
+            renderHoldingsTable();
+            startLivePulse();
+        });
+
+        // 1. PERFORMANCE LINE CHART
+        function initPerformanceChart() {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+            // Fills Gradients
+            const portfolioGradient = ctx.createLinearGradient(0, 0, 0, 300);
+            portfolioGradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+            portfolioGradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+            const data1Y = timeframes['1Y'];
+
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data1Y.labels,
+                    datasets: [
+                        {
+                            label: 'PortfólioPulse',
+                            data: data1Y.portfolio.map(v => v * currencyRate),
+                            borderColor: '#10b981',
+                            borderWidth: 3,
+                            backgroundColor: portfolioGradient,
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: 3,
+                            pointHoverRadius: 7,
+                            pointBackgroundColor: '#10b981',
+                            pointBorderColor: '#070a12',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'S&P 500 Benchmark',
+                            data: data1Y.benchmark.map(v => v * currencyRate),
+                            borderColor: '#64748b',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.35,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 2.2,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            borderColor: '#1e293b',
+                            borderWidth: 1,
+                            titleFont: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' },
+                            bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+                            padding: 12,
+                            boxPadding: 6,
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.dataset.label}: ${currencySymbol}${context.parsed.y.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { family: 'Plus Jakarta Sans', size: 11 },
+                                callback: function(val) {
+                                    return currencySymbol + (val / 1000) + 'k';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2. ALLOCATION DOUGHNUT CHART
+        function initAllocationChart() {
+            const ctx = document.getElementById('allocationChart').getContext('2d');
+            allocationChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['US Tech Stocks', 'Crypto Assets', 'Global Real Estate', 'Green Energy & Cash'],
+                    datasets: [{
+                        data: [42.5, 22.0, 17.0, 18.5],
+                        backgroundColor: [
+                            '#10b981', // Emerald
+                            '#06b6d4', // Cyan
+                            '#8b5cf6', // Purple
+                            '#f59e0b'  // Amber
+                        ],
+                        borderWidth: 4,
+                        borderColor: '#0f172a',
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            borderColor: '#1e293b',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.parsed}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 3. RISK RADAR CHART
+        function initRiskRadarChart() {
+            const ctx = document.getElementById('riskRadarChart').getContext('2d');
+            riskRadarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Diversification', 'Liquidity', 'Growth', 'Yield', 'Volatility Ctrl', 'ESG Rating'],
+                    datasets: [{
+                        label: 'Current Metrics',
+                        data: [88, 75, 92, 64, 85, 90],
+                        backgroundColor: 'rgba(6, 182, 212, 0.25)',
+                        borderColor: '#06b6d4',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#06b6d4',
+                        pointBorderColor: '#070a12',
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.08)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                            pointLabels: {
+                                color: '#94a3b8',
+                                font: { family: 'Plus Jakarta Sans', size: 10, weight: '600' }
+                            },
+                            ticks: { display: false, backdropColor: 'transparent' },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        // RENDER HOLDINGS TABLE
+        function renderHoldingsTable(filterText = '') {
+            const tbody = document.getElementById('holdingsTableBody');
+            tbody.innerHTML = '';
+
+            const filtered = holdings.filter(h => 
+                h.name.toLowerCase().includes(filterText.toLowerCase()) || 
+                h.ticker.toLowerCase().includes(filterText.toLowerCase())
+            );
+
+            document.getElementById('showingCount').innerText = filtered.length;
+
+            filtered.forEach(item => {
+                const isPositive = item.change >= 0;
+                const convertedPrice = (item.price * currencyRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const convertedValue = (item.value * currencyRate).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-900/50 transition-colors group border-b border-slate-800/40';
+                tr.id = `holding-row-${item.id}`;
+
+                tr.innerHTML = `
+                    <td class="p-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-[11px] text-emerald-400 group-hover:border group-hover:border-emerald-500/30">
+                                ${item.ticker.substring(0, 3)}
+                            </div>
+                            <div>
+                                <div class="font-bold text-slate-100">${item.name}</div>
+                                <div class="text-[10px] text-slate-400">${item.category}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-3">
+                        <div class="w-full max-w-[80px]">
+                            <div class="text-[11px] font-semibold text-slate-200 mb-1">${item.share}%</div>
+                            <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                <div class="h-full bg-emerald-500 rounded-full" style="width: ${item.share * 2}%"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-3 font-semibold text-slate-200">${currencySymbol}${convertedPrice}</td>
+                    <td class="p-3">
+                        <span class="inline-flex items-center gap-0.5 font-bold ${isPositive ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'} px-2 py-0.5 rounded text-[11px]">
+                            <i data-lucide="${isPositive ? 'arrow-up-right' : 'arrow-down-right'}" class="w-3 h-3"></i>
+                            ${isPositive ? '+' : ''}${item.change.toFixed(2)}%
+                        </span>
+                    </td>
+                    <td class="p-3 font-bold text-slate-100">${currencySymbol}${convertedValue}</td>
+                    <td class="p-3 text-right">
+                        <!-- Mini Sparkline visualization SVG -->
+                        <svg class="w-16 h-6 inline-block ${isPositive ? 'text-emerald-400' : 'text-rose-400'}" viewBox="0 0 60 20" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="${isPositive ? 'M0 15 Q 15 18, 30 10 T 60 2' : 'M0 2 Q 15 5, 30 12 T 60 18'}" stroke-linecap="round"/>
+                        </svg>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+
+        // TIMEFRAME BUTTON CONTROLLER
+        function setTimeframe(tf) {
+            document.querySelectorAll('.tf-btn').forEach(btn => {
+                btn.className = 'tf-btn px-3 py-1 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition-all';
+            });
+            event.currentTarget.className = 'tf-btn px-3 py-1 text-xs font-medium rounded-lg text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 font-bold transition-all';
+
+            const selected = timeframes[tf];
+            if (selected) {
+                performanceChart.data.labels = selected.labels;
+                performanceChart.data.datasets[0].data = selected.portfolio.map(v => v * currencyRate);
+                performanceChart.data.datasets[1].data = selected.benchmark.map(v => v * currencyRate);
+                performanceChart.update('active');
+            }
+        }
+
+        // CURRENCY SWITCHER
+        function changeCurrency(curr) {
+            currentCurrency = curr;
+            if (curr === 'USD') { currencySymbol = '$'; currencyRate = 1.0; }
+            else if (curr === 'EUR') { currencySymbol = '€'; currencyRate = 0.92; }
+            else if (curr === 'BRL') { currencySymbol = 'R$'; currencyRate = 5.75; }
+
+            // Update Header / Stat cards
+            const totalUSD = 1248650 * currencyRate;
+            const dailyUSD = 18420 * currencyRate;
+
+            document.getElementById('totalValueText').innerText = currencySymbol + Math.round(totalUSD).toLocaleString();
+            document.getElementById('dailyChangeValue').innerText = '+' + currencySymbol + Math.round(dailyUSD).toLocaleString();
+
+            // Refresh Chart & Table
+            performanceChart.data.datasets[0].data = timeframes['1Y'].portfolio.map(v => v * currencyRate);
+            performanceChart.data.datasets[1].data = timeframes['1Y'].benchmark.map(v => v * currencyRate);
+            performanceChart.update();
+
+            renderHoldingsTable(document.getElementById('searchInput').value);
+        }
+
+        // LIVE REAL-TIME PULSE SIMULATION
+        function startLivePulse() {
+            liveInterval = setInterval(() => {
+                if (!isLive) return;
+
+                // Randomly fluctuate main holdings & portfolio
+                const randomIndex = Math.floor(Math.random() * holdings.length);
+                const deltaPercent = (Math.random() * 0.8 - 0.38); // small random drift
+                
+                holdings[randomIndex].change += deltaPercent;
+                holdings[randomIndex].price += (holdings[randomIndex].price * (deltaPercent / 100));
+
+                // Recalculate total value slightly
+                const rowElem = document.getElementById(`holding-row-${holdings[randomIndex].id}`);
+                if (rowElem) {
+                    rowElem.classList.remove('flash-green', 'flash-red');
+                    void rowElem.offsetWidth; // trigger reflow
+                    rowElem.classList.add(deltaPercent >= 0 ? 'flash-green' : 'flash-red');
+                }
+
+                // Update chart last dataset point dynamically
+                const dataset = performanceChart.data.datasets[0].data;
+                const lastIdx = dataset.length - 1;
+                const liveDelta = (Math.random() * 2000 - 900) * currencyRate;
+                dataset[lastIdx] = Math.max(1000000, dataset[lastIdx] + liveDelta);
+                performanceChart.update('none');
+
+                // Update total display value softly
+                const currentTotal = dataset[lastIdx];
+                document.getElementById('totalValueText').innerText = currencySymbol + Math.round(currentTotal).toLocaleString();
+
+                renderHoldingsTable(document.getElementById('searchInput').value);
+
+            }, 3000);
+        }
+
+        function toggleLiveFeed() {
+            isLive = !isLive;
+            const ping = document.getElementById('livePing');
+            const statusText = document.getElementById('liveStatusText');
+            const btn = document.getElementById('liveToggleBtn');
+
+            if (isLive) {
+                ping.classList.remove('hidden');
+                statusText.innerText = 'Live Pulse ON';
+                btn.className = 'flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all';
+            } else {
+                ping.classList.add('hidden');
+                statusText.innerText = 'Pulse Paused';
+                btn.className = 'flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 text-xs font-semibold hover:bg-slate-700 transition-all';
+            }
+        }
+
+        // SEARCH FILTER FOR HOLDINGS
+        function filterHoldings() {
+            const query = document.getElementById('searchInput').value;
+            renderHoldingsTable(query);
+        }
+    </script>
+</body>
+</html>
+```
